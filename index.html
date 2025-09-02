@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Student Course Registration — Minimal</title>
+<style>
+  /* ---------- Simple reset & font ---------- */
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
+    color:#0f172a;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    background: #f8fafc;
+    display:flex;
+    align-items:stretch;
+  }
+
+  /* ---------- Layout: image (right) + form area (left) ---------- */
+  .wrap{display:flex;flex:1;min-height:100vh;align-items:stretch}
+  .visual{
+    flex:1.05;
+    background-image: url("C:/Users/KEERTHIKA/OneDrive/Pictures/StudentBgForm.jpg");
+    background-size:cover;
+    background-position:center;
+    background-repeat:no-repeat;
+    position:relative;
+    transform-origin:center;
+    /* gentle zoom animation (image shown first) */
+    animation:imgZoom 1.6s cubic-bezier(.22,.9,.28,1) forwards;
+    animation-delay:0s;
+  }
+  @keyframes imgZoom{
+    0%{transform:scale(1.08);opacity:0}
+    40%{opacity:1}
+    100%{transform:scale(1);opacity:1}
+  }
+
+  .panel{
+    width:480px;
+    max-width:92vw;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:48px 36px;
+    /* slide-in after image animation ends */
+    transform:translateX(-28px) translateY(8px);
+    opacity:0;
+    animation:panelIn .6s cubic-bezier(.22,.9,.28,1) forwards;
+    animation-delay:0.9s;
+    background:linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.95));
+    box-shadow: 0 12px 30px rgba(2,6,23,0.08);
+  }
+  @keyframes panelIn{
+    from{ transform:translateX(-28px) translateY(8px); opacity:0 }
+    to  { transform:translateX(0) translateY(0); opacity:1 }
+  }
+
+  /* ---------- Card & header ---------- */
+  .card{ width:100% }
+  h1{ font-size:20px; margin:0 0 6px; color:#0b1220 }
+  p.lead{ margin:0 0 18px; color:#475569; font-size:13px }
+
+  /* ---------- Minimal form grid ---------- */
+  form{ display:grid; gap:12px; grid-template-columns: 1fr 1fr; }
+  .full{ grid-column: 1 / -1 }
+
+  /* floating field container */
+  .field{ position:relative; }
+  input[type="text"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="date"],
+  input[type="password"],
+  select{
+    width:100%;
+    padding:14px 12px 12px 12px; /* leave space for label */
+    border-radius:10px;
+    border:1.5px solid #e6edf3;
+    background: #fff;
+    font-size:14px;
+    transition: border-color .18s ease, box-shadow .12s ease, transform .12s;
+    appearance:none;
+  }
+
+  /* small visual lift on hover/focus */
+  input:focus, select:focus{
+    border-color:#0f7ef1;
+    box-shadow:0 8px 18px rgba(15,126,241,.08);
+    outline: none;
+    transform: translateY(-1px);
+  }
+
+  /* floating label (inside input initially) */
+  label{
+    position:absolute;
+    left:12px;
+    top:14px;
+    font-size:14px;
+    color:#64748b;
+    padding:0 6px;
+    background:transparent;
+    pointer-events:none;
+    transition: transform .18s ease, top .18s ease, font-size .18s ease, color .18s ease;
+  }
+
+  /* move label up when input has text or is focused.
+     placeholder trick — keep placeholder=" " on inputs */
+  input:not(:placeholder-shown) + label,
+  input:focus + label,
+  select:focus + label,
+  select:not([data-empty="true"]) + label{
+    top:-10px;
+    font-size:11px;
+    color:#0f7ef1;
+    transform: translateY(-2px);
+    background:#fff;
+    border-radius:6px;
+  }
+
+  /* small helper text / error message */
+  .hint{ font-size:12px; color:#94a3b8; margin-top:6px }
+  .error{ color:#dc2626; display:none; font-size:12px; margin-top:6px }
+
+  /* invalid field container style (toggle .invalid on .field) */
+  .field.invalid input, .field.invalid select{
+    border-color:#dc2626;
+    box-shadow:0 6px 14px rgba(220,38,38,.08);
+  }
+  .field.invalid .error{ display:block }
+
+  /* submit actions full-width */
+  .actions{ grid-column:1 / -1; display:flex; gap:10px; justify-content:flex-end; margin-top:6px }
+  button{
+    padding:10px 14px;
+    border-radius:10px;
+    border:0;
+    cursor:pointer;
+    font-weight:600;
+  }
+  .btn-ghost{ background:#eef2ff; color:#0f172a }
+  .btn-primary{ background:linear-gradient(90deg,#de48b5 0%,#0097ff 100%); color:#fff; box-shadow:0 10px 20px rgba(4,120,255,.12) }
+
+  /* toast */
+  #toast{
+    position:fixed; right:20px; bottom:20px;
+    background:#0f172a; color:#fff; padding:10px 14px; border-radius:10px;
+    transform:translateY(12px); opacity:0; transition:all .28s ease;
+  }
+  #toast.show{ transform:none; opacity:1 }
+
+  /* responsive */
+  @media (max-width:880px){
+    .wrap{ flex-direction:column-reverse }
+    .visual{ height:40vh; order:0 }
+    .panel{ width:100%; order:1; padding:28px }
+    form{ grid-template-columns: 1fr }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <!-- Left panel: form -->
+    <section class="panel" aria-labelledby="title">
+      <div class="card">
+        <h1 id="title">Student Course Registration</h1>
+        <p class="lead">Enter valid details to enroll in a course. All fields required.</p>
+
+        <form id="form" novalidate>
+          <!-- full name -->
+          <div class="field full" data-i="1">
+            <input id="name" name="name" type="text" placeholder=" " required minlength="3" />
+            <label for="name">Full name</label>
+            <div class="error">Please enter at least 3 characters</div>
+          </div>
+
+          <!-- email -->
+          <div class="field" data-i="2">
+            <input id="email" name="email" type="email" placeholder=" " required />
+            <label for="email">Email</label>
+            <div class="error">Enter a valid email</div>
+          </div>
+
+          <!-- phone -->
+          <div class="field" data-i="3">
+            <input id="phone" name="phone" type="tel" placeholder=" " pattern="^[0-9]{10}$" inputmode="numeric" required />
+            <label for="phone">Phone (10 digits)</label>
+            <div class="error">Enter a 10-digit phone number</div>
+          </div>
+
+          <!-- dob -->
+          <div class="field" data-i="4">
+            <input id="dob" name="dob" type="date" placeholder=" " required />
+            <label for="dob">Date of birth</label>
+            <div class="error">Choose your birth date</div>
+          </div>
+
+          <!-- course -->
+          <div class="field full" data-i="5">
+            <select id="course" name="course" required data-empty="true">
+              <option value="" disabled selected hidden></option>
+              <option value="Computer Science">Computer Science</option>
+              <option value="Mathematics">Mathematics</option>
+              <option value="Physics">Physics</option>
+              <option value="Chemistry">Chemistry</option>
+              <option value="Biology">Biology</option>
+              <option value="Electronics">Electronics</option>
+            </select>
+            <label for="course">Select course</label>
+            <div class="error">Please select a course</div>
+          </div>
+
+          <!-- address -->
+          <div class="field full" data-i="6">
+            <input id="address" name="address" type="text" placeholder=" " required minlength="5" />
+            <label for="address">Address</label>
+            <div class="error">Enter a valid address</div>
+          </div>
+
+          <!-- city -->
+          <div class="field" data-i="7">
+            <input id="city" name="city" type="text" placeholder=" " required />
+            <label for="city">City</label>
+            <div class="error">City required</div>
+          </div>
+
+          <!-- zip -->
+          <div class="field" data-i="8">
+            <input id="zip" name="zip" type="text" placeholder=" " pattern="^[0-9]{5,6}$" required />
+            <label for="zip">PIN / ZIP</label>
+            <div class="error">5–6 digits</div>
+          </div>
+
+          <!-- mode & semester -->
+          <div class="field" data-i="9">
+            <select id="mode" name="mode" required data-empty="true">
+              <option value="" disabled selected hidden></option>
+              <option>On Campus</option>
+              <option>Online</option>
+              <option>Hybrid</option>
+            </select>
+            <label for="mode">Study mode</label>
+            <div class="error">Pick a mode</div>
+          </div>
+
+          <div class="field" data-i="10">
+            <select id="semester" name="semester" required data-empty="true">
+              <option value="" disabled selected hidden></option>
+              <option>Semester 1</option>
+              <option>Semester 2</option>
+              <option>Semester 3</option>
+              <option>Semester 4</option>
+            </select>
+            <label for="semester">Semester</label>
+            <div class="error">Pick a semester</div>
+          </div>
+
+          <!-- agree -->
+          <div class="field full" style="display:flex;gap:10px;align-items:center;margin-top:6px" data-i="11">
+            <input id="agree" name="agree" type="checkbox" style="width:18px;height:18px" required />
+            <label for="agree" style="position:static; top:auto; left:auto; font-size:14px; color:#334155">I confirm the above information is correct</label>
+          </div>
+
+          <div class="actions">
+            <button type="reset" class="btn-ghost">Clear</button>
+            <button type="submit" class="btn-primary">Register</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- Right: image panel (fills remaining area) -->
+    <aside class="visual" aria-hidden="true"></aside>
+  </div>
+
+  <!-- toast -->
+  <div id="toast" role="status" aria-live="polite">Registration successful ✔</div>
+
+<script>
+/* ==========================
+   Minimal form behavior + validation
+   ========================== */
+
+const form = document.getElementById('form');
+const toast = document.getElementById('toast');
+
+// Helper: mark / unmark invalid fields
+function setInvalid(el, text){
+  el.classList.add('invalid');
+  const err = el.querySelector('.error');
+  if(err && text) err.textContent = text;
+}
+function clearInvalid(el){
+  el.classList.remove('invalid');
+}
+
+// Fix selects: data-empty attribute toggles when value changes
+document.querySelectorAll('select[data-empty]').forEach(s=>{
+  s.addEventListener('change', ()=>{
+    if(s.value) s.dataset.empty = "false";
+    else s.dataset.empty = "true";
+  });
+});
+
+// Real-time clear invalid on input
+document.querySelectorAll('.field input, .field select').forEach(inp=>{
+  inp.addEventListener('input', ()=>{
+    const container = inp.closest('.field');
+    if(container) clearInvalid(container);
+  });
+  inp.addEventListener('blur', ()=>{
+    // quick field-level validity check on blur
+    const container = inp.closest('.field');
+    if(!inp.checkValidity()){
+      setInvalid(container);
+    } else {
+      clearInvalid(container);
+    }
+  });
+});
+
+// On submit validate all; show alert popup if errors, toast on success
+form.addEventListener('submit', function(e){
+  e.preventDefault();
+  let firstInvalid = null;
+  const invalids = [];
+
+  // custom trim checks for name & address
+  const name = form.name;
+  if(!name.value || name.value.trim().length < 3){
+    const el = name.closest('.field');
+    setInvalid(el, 'Please enter at least 3 letters for name');
+    invalids.push('Name (min 3 chars)');
+    if(!firstInvalid) firstInvalid = name;
+  }
+
+  // built-in HTML validations for other inputs
+  Array.from(form.querySelectorAll('input, select')).forEach(inp=>{
+    // skip name handled above and checkbox handled below
+    if(inp.name === 'name' || inp.type === 'checkbox') return;
+    const container = inp.closest('.field') || inp;
+    if(!inp.checkValidity()){
+      setInvalid(container);
+      // friendly label text
+      const label = container.querySelector('label');
+      const labelText = label ? label.textContent.trim() : inp.name;
+      invalids.push(labelText);
+      if(!firstInvalid) firstInvalid = inp;
+    }
+  });
+
+  // checkbox
+  const agree = form.agree;
+  if(!agree.checked){
+    invalids.push('Confirmation checkbox');
+    // focus checkbox
+    if(!firstInvalid) firstInvalid = agree;
+    alert('Please confirm the information by checking the box.');
+  }
+
+  if(invalids.length){
+    // build an alert popup listing first few errors
+    const msg = 'Please fix the following fields:\\n• ' + invalids.slice(0,8).join('\\n• ');
+    alert(msg);
+    if(firstInvalid) firstInvalid.focus();
+    return;
+  }
+
+  // all good -> success toast & reset
+  toast.classList.add('show');
+  setTimeout(()=> toast.classList.remove('show'), 2600);
+  form.reset();
+
+  // reset select data-empty attributes (so label slides back)
+  document.querySelectorAll('select[data-empty]').forEach(s=> s.dataset.empty = "true");
+
+  // remove any invalid marks
+  document.querySelectorAll('.field.invalid').forEach(f=> f.classList.remove('invalid'));
+});
+
+/* small UX: staggered entrance for each field (pure CSS handled; we can add small JS if needed)
+   but to keep code minimal we relied on simple overall panel animation.
+*/
+</script>
+</body>
+</html>
